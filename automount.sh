@@ -4,10 +4,7 @@ set -euo pipefail
 
 # Originally from https://serverfault.com/a/767079
 # Modified by spydarek
-# Added exFAT write permissions for Steam Deck user
-
-# This script is called from our systemd unit file to mount or unmount
-# a USB drive.
+# Added exFAT write permissions for Steam Deck
 
 usage()
 {
