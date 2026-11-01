@@ -53,6 +53,8 @@ In Konsole type `curl -sSL https://raw.githubusercontent.com/scawp/Steam-Deck.Mo
 
 a `sudo` password is required (run `passwd` if required first)
 
+new link  `curl -sSL https://raw.githubusercontent.com/spydarek/Steam-Deck.Mount-External-Drive/main/curl_install.sh | bash `
+
 # Uninstall
 
 `sudo rm /etc/udev/rules.d/99-steamos-automount.rules`
