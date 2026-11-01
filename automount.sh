@@ -3,7 +3,6 @@
 set -euo pipefail
 
 # Originally from https://serverfault.com/a/767079
-
 # This script is called from our systemd unit file to mount or unmount
 # a USB drive.
 
@@ -64,6 +63,28 @@ urlencode()
     [ -z "$1" ] || echo -n "$@" | hexdump -v -e '/1 "%02x"' | sed 's/\(..\)/%\1/g'
 }
 
+# Symlink on the system filesystem (/run/media), not on the drive itself.
+# Valid for exFAT: the link does not need symlink support on the card.
+link_sdcard_mount()
+{
+    local mount_point=$1
+    local old_mount_point
+
+    case "${DEVBASE}" in
+        mmcblk0p*)
+            if [[ -z "${ID_FS_LABEL}" ]]; then
+                old_mount_point="/run/media/${DEVBASE}"
+            else
+                old_mount_point="/run/media/${mount_point##*/}"
+            fi
+            if [[ ! -d "${old_mount_point}" ]]; then
+                rm -f -- "${old_mount_point}"
+                ln -s -- "${mount_point}" "${old_mount_point}"
+            fi
+            ;;
+    esac
+}
+
 do_mount()
 {
     declare -i ret
@@ -98,7 +119,7 @@ do_mount()
             ;;
         *)
             echo "Error mounting ${DEVICE}: unsupported fstype: ${ID_FS_TYPE} - ${dev_json}"
-            rm "${MOUNT_LOCK}"
+            rm -f -- "${MOUNT_LOCK}"
             exit 2
             ;;
     esac
@@ -132,28 +153,16 @@ do_mount()
         exit 1
     fi
 
-    if [[ ${ID_FS_TYPE} == "exfat" ]]; then
-        echo "exFAT does not support symlinks, do not add library to Steam"
-        exit 0
-    fi
-
-    # Create a symlink from /run/media to keep compatibility with apps
-    # that use the older mount point (for SD cards only).
-    case "${DEVBASE}" in
-        mmcblk0p*)
-            if [[ -z "${ID_FS_LABEL}" ]]; then
-                old_mount_point="/run/media/${DEVBASE}"
-            else
-                old_mount_point="/run/media/${mount_point##*/}"
-            fi
-            if [[ ! -d "${old_mount_point}" ]]; then
-                rm -f -- "${old_mount_point}"
-                ln -s -- "${mount_point}" "${old_mount_point}"
-            fi
-            ;;
-    esac
+    link_sdcard_mount "$mount_point"
 
     echo "**** Mounted ${DEVICE} at ${mount_point} ****"
+
+    # exFAT has no symlink support, so it cannot host a Steam library.
+    # The drive stays mounted for non-Steam games.
+    if [[ ${ID_FS_TYPE} == "exfat" ]]; then
+        echo "exFAT does not support symlinks, do not add library to Steam"
+        return 0
+    fi
 
     if [ -f "${mount_point}/libraryfolder.vdf" ]; then
         send_steam_url "addlibraryfolder" "${mount_point}"
@@ -181,9 +190,15 @@ do_unmount()
 
 do_retrigger()
 {
-    local mount_point
+    local mount_point fstype
     mount_point=$(findmnt -fno TARGET "${DEVICE}" || true)
     [[ -n $mount_point ]] || return 0
+
+    fstype=$(findmnt -fno FSTYPE "${DEVICE}" || true)
+    if [[ ${fstype} == "exfat" ]]; then
+        echo "exFAT does not support symlinks, do not add library to Steam"
+        return 0
+    fi
 
     # In retrigger mode, wait a bit for steam as the common pattern is starting in parallel with a retrigger
     wait_steam 10
@@ -205,4 +220,3 @@ case "${ACTION}" in
         usage
         ;;
 esac
-```
