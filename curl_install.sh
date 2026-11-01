@@ -18,22 +18,20 @@ device_name="$(uname --nodename)"
 user="$(id -u deck)"
 
 if [ "$device_name" != "steamdeck" ] || [ "$user" != "1000" ]; then
-  zenity --question --width=400 \
+  if ! zenity --question --width=400 \
     --text="This code has been written specifically for the Steam Deck with user Deck \
     \nIt appears you are running on a different system/non-standard configuration. \
-    \nAre you sure you want to continue?"
-  if [ "$?" != 0 ]; then
-    echo "bye then! xxx"
+    \nAre you sure you want to continue?"; then
+    echo "Installation cancelled."
     exit 1
   fi
 fi
 
 function install_automount () {
-  zenity --question --width=400 \
+  if ! zenity --question --width=400 \
     --text="Read $repo_url/README.md before proceeding. \
-    \nDo you want to install the Auto-Mount Service?"
-  if [ "$?" != 0 ]; then
-    echo "bye then! xxx"
+    \nDo you want to install the Auto-Mount Service?"; then
+    echo "Installation cancelled."
     exit 0
   fi
 
@@ -61,7 +59,11 @@ function install_automount () {
     exit 1
   fi
 
-  bash -n "$tmp_dir/automount.sh"
+  if ! bash -n "$tmp_dir/automount.sh"; then
+    echo "ERROR: automount.sh contains syntax errors."
+    exit 1
+  fi
+
   echo "exFAT fix verified"
 
   echo "Making script folder $script_install_dir"
@@ -90,18 +92,18 @@ function install_automount () {
   echo "Reloading Services"
   sudo udevadm control --reload
   sudo systemctl daemon-reload
+
+  echo "Installation completed successfully."
 }
 
 install_automount
 
-zenity --question --width=400 \
+if ! zenity --question --width=400 \
   --text="Restart Required to take effect, \
-  \nDo you want to Restart Now?"
-if [ "$?" != 0 ]; then
-  echo "bye then! xxx"
+  \nDo you want to Restart Now?"; then
+  echo "Installation completed. Restart later to apply changes."
   exit 0
 fi
 
-reboot
-
-echo "Done."
+echo "Restarting Steam Deck..."
+sudo reboot
