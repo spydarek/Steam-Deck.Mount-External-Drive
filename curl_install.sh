@@ -1,3 +1,4 @@
+```bash
 #!/usr/bin/env bash
 # Steam Deck Mount External Drive
 # Modified by spydarek
@@ -89,6 +90,7 @@ fetch() {
     local output="$2"
 
     curl --fail --location --silent --show-error \
+        --proto '=https' --tlsv1.2 \
         --retry 2 --retry-delay 1 \
         "$url" --output "$output"
 
@@ -177,8 +179,11 @@ staged=(
 
 echo "Preparing installation directories..."
 
-sudo install -d -o deck -g deck -m 755 "$script_install_dir"
-sudo install -d -o deck -g deck -m 700 "$backup_root"
+# Protect the script directory from modification by the deck user.
+sudo install -d -o root -g root -m 755 "$script_install_dir"
+
+# Keep backups protected from modification.
+sudo install -d -o root -g root -m 700 "$backup_root"
 
 echo "Creating backups..."
 
@@ -227,3 +232,4 @@ if zenity --question --width=420 \
 else
     echo "Restart later to activate the changes."
 fi
+```
