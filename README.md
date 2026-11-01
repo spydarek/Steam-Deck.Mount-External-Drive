@@ -3,6 +3,16 @@ Script to Auto-Mount NTFS, BTRFS & exFat SDCards, External USB Drives (or SSD Do
 
 NTFS & BTRFS Partitions containing a SteamLibrary at root level or in a folder named `SteamLibrary` will automatically be added to Steam, exFAT isn't supported as a SteamLibrary but will be Mounted for use with other Launchers or for Media/ROMs etc.
 
+# Added automatic exFAT mount permissions for Steam Deck.
+
+- Added proper file ownership for the `deck` user (`uid=1000`, `gid=1000`).
+- Enabled read/write access for exFAT drives.
+- Fixed file and directory permissions using `fmask=0022` and `dmask=0002`.
+- Updated the installer to automatically apply the exFAT fix.
+- Preserved existing NTFS and other filesystem mounting behavior.
+
+This allows users to copy, create, modify and delete files on automatically mounted exFAT drives.
+
 # "This is cool! How can I thank you?"
 ### Why not drop me a sub over on my youtube channel ;) [Chinballs Gaming](https://www.youtube.com/chinballsTV?sub_confirmation=1)
 
