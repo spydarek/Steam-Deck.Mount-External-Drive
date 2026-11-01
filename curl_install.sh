@@ -1,51 +1,42 @@
 #!/usr/bin/env bash
-# Steam Deck Mount External Drive - safer installer
+# Steam Deck Mount External Drive
 # Modified by spydarek
-# Validates files and keeps backups before installation.
+# Validates all downloaded files and keeps backups.
 
 set -Eeuo pipefail
 
 repo_url="https://raw.githubusercontent.com/spydarek/Steam-Deck.Mount-External-Drive/main"
 repo_lib_dir="$repo_url/lib"
 
-tmp_dir="$(mktemp -d /tmp/scawp.SDMED.install.XXXXXX)"
-backup_root="/home/deck/.local/share/scawp/SDMED/backups/$(date +%Y%m%d-%H%M%S)"
-
-rules_install_dir="/etc/udev/rules.d"
-service_install_dir="/etc/systemd/system"
 script_install_dir="/home/deck/.local/share/scawp/SDMED"
+service_install_dir="/etc/systemd/system"
+rules_install_dir="/etc/udev/rules.d"
 
-new_files=()
+tmp_dir="$(mktemp -d /tmp/scawp.SDMED.install.XXXXXX)"
+backup_root="$script_install_dir/backups/$(date +%Y%m%d-%H%M%S)"
+
+targets=()
 backup_files=()
 existed_files=()
+installation_started=0
 
 cleanup() {
     rm -rf -- "$tmp_dir"
 }
 
-restore_file() {
-    local target="$1"
-    local backup="$2"
-    local existed="$3"
-
-    if [[ "$existed" == "yes" ]]; then
-        sudo cp -a -- "$backup" "$target" || true
-    else
-        sudo rm -f -- "$target" || true
-    fi
-}
-
 rollback() {
     local i
 
+    echo
     echo "ERROR: Installation failed."
     echo "Restoring previous files..."
 
-    for ((i=${#new_files[@]}-1; i>=0; i--)); do
-        restore_file \
-            "${new_files[$i]}" \
-            "${backup_files[$i]}" \
-            "${existed_files[$i]}"
+    for ((i=${#targets[@]}-1; i>=0; i--)); do
+        if [[ "${existed_files[$i]}" == "yes" ]]; then
+            sudo cp -a -- "${backup_files[$i]}" "${targets[$i]}" || true
+        else
+            sudo rm -f -- "${targets[$i]}" || true
+        fi
     done
 
     sudo udevadm control --reload-rules >/dev/null 2>&1 || true
@@ -54,7 +45,19 @@ rollback() {
     echo "Rollback finished."
 }
 
+on_error() {
+    local status=$?
+    trap - ERR
+
+    if (( installation_started )); then
+        rollback
+    fi
+
+    exit "$status"
+}
+
 trap cleanup EXIT
+trap on_error ERR
 
 for cmd in curl sudo zenity bash grep install; do
     command -v "$cmd" >/dev/null 2>&1 || {
@@ -74,12 +77,12 @@ if [[ "$(uname -n)" != "steamdeck" ]] ||
 fi
 
 if ! zenity --question --width=440 \
-    --text="Install SDMED from the spydarek repository? The installer will validate all files and keep backups of the current installation."; then
+    --text="Install SDMED from the spydarek repository? Existing files will be backed up before installation."; then
     echo "Installation cancelled."
     exit 0
 fi
 
-mkdir -p "$tmp_dir/download"
+mkdir -p "$tmp_dir/download" "$tmp_dir/stage"
 
 fetch() {
     local url="$1"
@@ -90,7 +93,7 @@ fetch() {
         "$url" --output "$output"
 
     [[ -s "$output" ]] || {
-        echo "Downloaded file is empty: $output"
+        echo "ERROR: Downloaded file is empty: $output"
         return 1
     }
 }
@@ -151,8 +154,6 @@ grep -Fq 'ACTION=="remove"' "$rules" || {
 
 echo "All downloaded files passed validation."
 
-mkdir -p "$tmp_dir/stage"
-
 install -m 555 "$auto" \
     "$tmp_dir/stage/automount.sh"
 
@@ -174,6 +175,9 @@ staged=(
     "$tmp_dir/stage/99-steamos-automount.rules"
 )
 
+echo "Preparing installation directories..."
+
+sudo install -d -o deck -g deck -m 755 "$script_install_dir"
 sudo install -d -o deck -g deck -m 700 "$backup_root"
 
 echo "Creating backups..."
@@ -187,42 +191,27 @@ for i in "${!targets[@]}"; do
     fi
 
     backup_files+=("$backup_root/$i")
-    new_files+=("${targets[$i]}")
 done
 
-trap 'rollback; exit 1' ERR
+echo "Installing files..."
 
-echo "Installing automount.sh..."
+installation_started=1
 
 sudo install -D -o root -g root -m 555 \
     "${staged[0]}" "${targets[0]}"
 
-echo "Installing systemd service..."
-
 sudo install -D -o root -g root -m 644 \
     "${staged[1]}" "${targets[1]}"
 
-echo "Installing udev rules..."
-
 sudo install -D -o root -g root -m 644 \
     "${staged[2]}" "${targets[2]}"
-
-echo "Removing obsolete rules..."
-
-for old_rule in \
-    "$rules_install_dir/99-external-drive-mount.rules" \
-    "$rules_install_dir/98-external-drive-mount.rules"; do
-
-    if sudo test -f "$old_rule"; then
-        sudo rm -f -- "$old_rule"
-    fi
-done
 
 echo "Reloading udev and systemd..."
 
 sudo udevadm control --reload-rules
 sudo systemctl daemon-reload
 
+installation_started=0
 trap - ERR
 
 echo
