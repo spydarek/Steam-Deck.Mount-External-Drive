@@ -35,7 +35,8 @@ function install_automount () {
     exit 0
   fi
 
-  echo "Making tmp folder $tmp_dir"
+  echo "Preparing temporary folder"
+  rm -rf "$tmp_dir"
   mkdir -p "$tmp_dir"
 
   echo "Downloading Required Files"
