@@ -1,4 +1,3 @@
-```bash
 #!/usr/bin/env bash
 # Steam Deck Mount External Drive
 # Modified by spydarek
@@ -232,4 +231,3 @@ if zenity --question --width=420 \
 else
     echo "Restart later to activate the changes."
 fi
-```
