@@ -1,90 +1,173 @@
 # Steam-Deck.Mount-External-Drive 3.5
-Script to Auto-Mount NTFS, BTRFS & exFat SDCards, External USB Drives (or SSD Docks) & Internal Partitions (If you Dual-Boot) on the Steam Deck
 
-NTFS & BTRFS Partitions containing a SteamLibrary at root level or in a folder named `SteamLibrary` will automatically be added to Steam, exFAT isn't supported as a SteamLibrary but will be Mounted for use with other Launchers or for Media/ROMs etc.
+Script to Auto-Mount NTFS, BTRFS & exFAT SD Cards, External USB Drives (or SSD Docks) & Internal Partitions (If you Dual-Boot) on the Steam Deck.
 
-# Added automatic exFAT mount permissions for Steam Deck.  (darekspy)
+NTFS & BTRFS partitions containing a SteamLibrary at root level or in a folder named `SteamLibrary` will automatically be added to Steam.
 
-- Added proper file ownership for the `deck` user (`uid=1000`, `gid=1000`).
-- Enabled read/write access for exFAT drives.
-- Fixed file and directory permissions using `fmask=0022` and `dmask=0002`.
-- Updated the installer to automatically apply the exFAT fix.
-- Preserved existing NTFS and other filesystem mounting behavior.
+exFAT is not supported as a SteamLibrary filesystem, but drives will be mounted for use with other launchers, media, ROMs and general file storage.
 
-This allows users to copy, create, modify and delete files on automatically mounted exFAT drives.
+---
 
-# Changes to automount.sh (darekspy)
+# Added automatic exFAT mount permissions for Steam Deck (darekspy)
 
-Added proper exFAT mount options for the Steam Deck user (uid=1000, gid=1000).
+This fork adds automatic ownership and permission handling for exFAT drives mounted by SDMED.
 
-Enabled read and write access for automatically mounted exFAT drives.
+### Changes
 
-Added file and directory permission masks (fmask=0022, dmask=0002).
+- Added `uid=1000` and `gid=1000` mount options to assign exFAT file ownership to the Steam Deck `deck` user.
+- Added `fmask=0022` and `dmask=0002` to configure file and directory permissions.
+- Preserved the original UDisks2 mounting mechanism.
+- Preserved existing NTFS, Btrfs and ext4 mounting behavior.
+- Kept automatic Steam Library registration for supported filesystems.
+- Preserved the original behavior of skipping Steam Library registration for exFAT drives.
+- Updated the installer to download and install the modified automount script.
 
-Preserved existing NTFS, Btrfs and ext4 mounting behavior.
+### Why this change?
 
-Kept the UDisks2 mounting mechanism.
+By default, automatically mounted exFAT drives may not have the ownership and permissions expected by the `deck` user.
 
-Improved error handling for unsupported filesystems.
+These mount options are intended to provide the correct ownership and read/write access, allowing the user to create, copy, modify and delete files on automatically mounted exFAT drives.
 
-Preserved Steam library registration for supported filesystems.
+The exFAT filesystem is retained, so the drive remains compatible with Windows.
 
-Added an explicit message when exFAT is mounted and Steam library registration is skipped.
+**Note:** Actual mounting behavior and permissions should be verified on SteamOS after installation.
 
-
+---
 
 # "This is cool! How can I thank you?"
-### Why not drop me a sub over on my youtube channel ;) [Chinballs Gaming](https://www.youtube.com/chinballsTV?sub_confirmation=1)
 
-### Also [Check out all these other things I'm making](https://github.com/scawp/Steam-Deck.Tools-List)
+Why not drop me a sub over on my YouTube channel ;)
 
+[Chinballs Gaming](https://www.youtube.com/chinballsTV?sub_confirmation=1)
 
-# Steam OS 3.5 Now supports Ext4 external Drives out the box so see **Uninstall** if thats all you need!
+Also check out all these other things I'm making:
+
+[Steam-Deck.Tools-List](https://github.com/scawp/Steam-Deck.Tools-List)
+
+---
+
+# SteamOS 3.5
+
+SteamOS 3.5 now supports external ext4 drives out of the box, so see **Uninstall** if that's all you need!
+
+---
 
 # How does this work?
 
-This script is basically a mirror of Valves own Auto-Mount script (which lives on SteamOS at `/usr/lib/hwsupport/steamos-automount.sh` ) adding in support for `ntfs`, `btrfs` & `exFAT` and adding rules for Internal Partitions.
+This script is basically a mirror of Valve's own Auto-Mount script, which lives at:
 
-Additional RegEx has been added to the rules to allow he mounting of "Full Disk" Formatted drives (eg ones that don't have a partitions table) so even drives that are eg `sda` or `mmcblk0` as well as `sda1` or `mmcblk0p1` can be mounted.
+`/usr/lib/hwsupport/steamos-automount.sh`
 
-SteamOS's rule for this lives at `/usr/lib/udev/rules.d/99-steamos-automount.rules` and because SteamOS has a Read-Only File System, files in `/usr/` cannot be changed without removing the Read-Onlyness, however systemd rules can be overwritten due to how systemd prioritieses directories, so by adding a rule with the same name in `/etc/udev/rules.d/` we can override the rule without making changes to SteamOS.
+It adds support for `ntfs`, `btrfs` and `exFAT`, as well as rules for internal partitions.
 
-Looking for the old code? see https://github.com/scawp/Steam-Deck.Mount-External-Drive/tree/pre-3.5
+Additional RegEx has been added to the rules to allow the mounting of full-disk-formatted drives (for example, drives without a partition table). This means devices such as `sda` or `mmcblk0` can be mounted, as well as partitions such as `sda1` or `mmcblk0p1`.
 
-a `udev` rule is added to `/etc/udev/rules.d/99-steamos-automount.rules` which takes priority over `/usr/lib/udev/rules.d/99-steamos-automount.rules` 
-this then calls systemd `/etc/systemd/system/external-drive-mount@[sda|sda1|sda2|sdd1|etc].service`
-that then runs `/home/deck/.local/share/scawp/SDMED/automount.sh` to Auto Mount any supported SD/External USB/Internal Partitions.
+SteamOS's original rule is located at:
 
-`/etc/fstab` is not required for mounting in this way, (however if a Device has an `fstab` entry these scripts will still work)
+`/usr/lib/udev/rules.d/99-steamos-automount.rules`
+
+Because SteamOS has a read-only filesystem, files in `/usr/` cannot be changed without disabling the read-only filesystem. However, systemd and udev rules can be overridden through higher-priority configuration directories.
+
+By adding a rule with the same name in `/etc/udev/rules.d/`, the original SteamOS rule can be overridden without modifying the system files.
+
+A udev rule is added to:
+
+`/etc/udev/rules.d/99-steamos-automount.rules`
+
+This takes priority over:
+
+`/usr/lib/udev/rules.d/99-steamos-automount.rules`
+
+The rule then calls the systemd service:
+
+`/etc/systemd/system/external-drive-mount@[device].service`
+
+The service runs:
+
+`/home/deck/.local/share/scawp/SDMED/automount.sh`
+
+This automatically mounts supported SD cards, external USB drives and internal partitions.
+
+`/etc/fstab` is not required for mounting in this way. However, if a device has an fstab entry, these scripts will still work.
+
+---
 
 # Video Guide
 
-https://www.youtube.com/watch?v=Yglf1EKBv2A
+[https://www.youtube.com/watch?v=Yglf1EKBv2A](https://www.youtube.com/watch?v=Yglf1EKBv2A)
+
+---
 
 # Operation
 
-The Drive(s) will be Auto-Mounted to `/run/media/deck/[LABEL]` eg `/run/media/deck/External-ssd/` if the Device has no `label` then the Devices `UUID` will be used eg `/run/media/deck/a12332-12bf-a33ab-eef/`
+Drives are automatically mounted to:
+
+`/run/media/deck/[LABEL]`
+
+For example:
+
+`/run/media/deck/External-ssd/`
+
+If a device has no filesystem label, its UUID will be used instead.
+
+For example:
+
+`/run/media/deck/a12332-12bf-a33ab-eef/`
+
+---
 
 # Installation
 
-## Via Curl (One Line Install)
+## Via Curl (One-Line Install)
 
-In Konsole type  `curl -sSL https://raw.githubusercontent.com/spydarek/Steam-Deck.Mount-External-Drive/main/curl_install.sh | bash`
+Open Konsole on your Steam Deck and run:
 
-a `sudo` password is required (run `passwd` if required first)
+```bash
+curl -sSL https://raw.githubusercontent.com/spydarek/Steam-Deck.Mount-External-Drive/main/curl_install.sh | bash
+```
+
+A `sudo` password is required.
+
+If you have not set one yet, run:
+
+```bash
+passwd
+```
+
+Follow the on-screen instructions.
+
+---
 
 # Uninstall
 
-`sudo rm /etc/udev/rules.d/99-steamos-automount.rules`
+To remove SDMED, run the following commands in Konsole:
 
-`sudo rm /etc/systemd/system/external-drive-mount@.service`
+```bash
+sudo rm /etc/udev/rules.d/99-steamos-automount.rules
 
-`sudo rm -r /home/deck/.local/share/scawp/SDMED`
+sudo rm /etc/systemd/system/external-drive-mount@.service
 
-`sudo udevadm control --reload`
+sudo rm -r /home/deck/.local/share/scawp/SDMED
 
-`sudo systemctl daemon-reload`
+sudo udevadm control --reload
+
+sudo systemctl daemon-reload
+```
+
+---
 
 # WORK IN PROGRESS!
 
-This will probably have bugs, so beware! log bugs under [issues](https://github.com/scawp/Steam-Deck.Mount-External-Drive/issues)!
+This project may contain bugs, so use it at your own risk.
+
+If you encounter any problems, please report them under:
+
+[Issues](https://github.com/scawp/Steam-Deck.Mount-External-Drive/issues)
+
+---
+
+# Credits
+
+Original project by [scawp](https://github.com/scawp).
+
+exFAT automatic mount permission changes by [darekspy](https://github.com/spydarek).
