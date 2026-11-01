@@ -13,6 +13,26 @@ NTFS & BTRFS Partitions containing a SteamLibrary at root level or in a folder n
 
 This allows users to copy, create, modify and delete files on automatically mounted exFAT drives.
 
+# Changes to automount.sh
+
+Added proper exFAT mount options for the Steam Deck user (uid=1000, gid=1000).
+
+Enabled read and write access for automatically mounted exFAT drives.
+
+Added file and directory permission masks (fmask=0022, dmask=0002).
+
+Preserved existing NTFS, Btrfs and ext4 mounting behavior.
+
+Kept the UDisks2 mounting mechanism.
+
+Improved error handling for unsupported filesystems.
+
+Preserved Steam library registration for supported filesystems.
+
+Added an explicit message when exFAT is mounted and Steam library registration is skipped.
+
+
+
 # "This is cool! How can I thank you?"
 ### Why not drop me a sub over on my youtube channel ;) [Chinballs Gaming](https://www.youtube.com/chinballsTV?sub_confirmation=1)
 
