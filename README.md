@@ -13,7 +13,7 @@ NTFS & BTRFS Partitions containing a SteamLibrary at root level or in a folder n
 
 This allows users to copy, create, modify and delete files on automatically mounted exFAT drives.
 
-# Changes to automount.sh
+# Changes to automount.sh (darekspy)
 
 Added proper exFAT mount options for the Steam Deck user (uid=1000, gid=1000).
 
